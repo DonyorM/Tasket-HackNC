@@ -5,6 +5,16 @@ import {
   Paper,
   Typography,
   ThemeProvider,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  TextField
 } from "@mui/material";
 import {
   doc,
@@ -16,18 +26,21 @@ import {
 } from "@firebase/firestore";
 import { DataGrid } from "@mui/x-data-grid";
 import {
-  useDocumentDataOnce,
+  useDocument,
   useCollection,
 } from "react-firebase-hooks/firestore";
 import { getAuth } from "@firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import theme from "../Themes";
 import moment from "moment";
+import { Fragment, useEffect, useState } from "react";
 
 const db = getFirestore();
 const auth = getAuth();
 const functions = getFunctions();
 const getUser = httpsCallable(functions, "getUser");
+
+const padding = {mt: 1, mb: 1};
 
 //https://stackoverflow.com/a/1527820/2719960
 /**
@@ -43,24 +56,78 @@ function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function MemberDialog({ open, handleClose, members, setMembers, group }) {
+  const [email, setEmail] = useState("");
+  function updateEmail(e) {
+    setEmail(e.target.value);
+  }
+  function addMember() {
+    const newMembers = [...group.data().members, email];
+    updateDoc(group.ref, {
+      members: newMembers
+    });
+    handleClose();
+  }
+  return (
+    <Dialog open={open} onClose={handleClose}>
+    <DialogTitle>Subscribe</DialogTitle>
+    <DialogContent>
+      <DialogContentText>
+        Enter the email of the new member
+      </DialogContentText>
+      <TextField
+        autoFocus
+        margin="dense"
+        id="name"
+        label="Email Address"
+        type="email"
+        fullWidth
+        variant="standard"
+        onChange={updateEmail}
+      />
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={handleClose}>Cancel</Button>
+      <Button onClick={addMember}>Add Member</Button>
+    </DialogActions>
+  </Dialog>
+  );
+}
+
 function Group({ groupName, email, onClose }) {
-  const [groupData, groupLoading, groupError] = useDocumentDataOnce(
+  const [group, groupLoading, groupError] = useDocument(
     doc(db, "groups", groupName)
   );
   const [taskDocs, tasksLoading, tasksError] = useCollection(
     query(collection(db, "tasks"), where("group", "==", groupName))
   );
+  const [viewMembers, setViewMembers] = useState(false);
+  const [memberList, setMemberList] = useState([]);
+  const [showAddMember, setShowAddMember] = useState(false);
+
+  useEffect(async () => {
+    if (!group) {
+      return;
+    }
+    const members = await Promise.all(
+      group.data().members.map(async (email) => {
+        const result = await getUser({ email: email });
+        return result.data.name ? result.data.name : "Error getting name";
+      })
+    );
+    setMemberList(members);
+  }, [group]);
 
   if (groupLoading || tasksLoading) {
     return <Typography variant="body">Loading...</Typography>;
   }
+  const groupData = group.data();
 
   const isAdmin = groupData.admin == email;
   const taskData = taskDocs.docs.map((doc) => doc.data());
   const yourTask = taskData.filter((task) => task.assigned == email)[0];
 
   const rows = taskData
-    .filter((task) => task.assigned != email)
     .map((task, index) => {
       const startDate = groupData.activeDate
         ? moment(groupData.activeDate, "YYYY-MM-DD")
@@ -147,8 +214,8 @@ function Group({ groupName, email, onClose }) {
   ];
 
   return (
-    <Paper>
-      <Typography variant="h3">{groupName}</Typography>
+    <Paper sx={{ p: 2 }}>
+      <Typography sx={padding} variant="h3">{groupName}</Typography>
       {isAdmin ? (
         <Button onClick={assignTasks} variant="contained">
           Assign Tasks
@@ -156,19 +223,19 @@ function Group({ groupName, email, onClose }) {
       ) : (
         ""
       )}
-      <Box>
+      <Box sx={padding} >
         <Typography variant="h4">
           Your Task: {yourTask ? yourTask.name : "Tasks not assigned"}
         </Typography>
       </Box>
       {yourTask ? (
-        <Box sx={{ display: "flex", justifyContent: "space-evenly" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-evenly", mt:1, mb: 1 }}>
           <Typography variant="body">
             Task Status: {yourTask.completed ? "Complete!" : "Incomplete"}
           </Typography>
           {!yourTask.completed ? (
             <Button variant="contained" onClick={completeTask}>
-              Complete
+              Mark Task Complete
             </Button>
           ) : (
             ""
@@ -177,16 +244,56 @@ function Group({ groupName, email, onClose }) {
       ) : (
         ""
       )}
-      <DataGrid
+      <Divider sx={padding}  />
+      <Typography sx={padding}  variant="h5" sx={{ alignSelf: "flex-start" }}>
+        Tasks
+      </Typography>
+      <DataGrid sx={padding} 
         rows={rows}
         columns={columns}
         style={{ height: "400px", width: "100%" }}
       />
-      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button variant="contained" onClick={() => (onClose ? onClose() : "")}>
-          Back
-        </Button>
+      {viewMembers ? (
+        <Fragment>
+          <Typography sx={padding}  variant="h5">Members</Typography>
+          <List sx={{borderRadius: 1, border: 1, borderColor: 'grey.300', mt: 1, mb: 1}}>
+            {memberList.map((member) => {
+              return (
+                <Fragment>
+                  <ListItem>
+                    <ListItemText primary={member} />
+                  </ListItem>
+                  <Divider />
+                </Fragment>
+              );
+            })}
+          </List>
+          <Box sx={{display: "flex", justifyContent: "flex-end", mt: 1, mb: 1}}>
+            <Button variant="contained" onClick={() => setShowAddMember(true)}>Add Member</Button>
+          </Box>
+        </Fragment>
+      ) : (
+        ""
+      )}
+      <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1, mb: 1 }}>
+        <Box sx={{ display: "flex" }}>
+          <Button
+            variant="contained"
+            onClick={() => setViewMembers(!viewMembers)}
+          >
+            {viewMembers ? "Hide" : "Show"} Members
+          </Button>
+        </Box>
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            onClick={() => (onClose ? onClose() : "")}
+          >
+            Back
+          </Button>
+        </Box>
       </Box>
+      <MemberDialog open={showAddMember} handleClose={setShowAddMember} members={memberList} setMembers={setMemberList} group={group} />
     </Paper>
   );
 }

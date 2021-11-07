@@ -18,6 +18,8 @@ import Login from "./Login";
 import { CREATE_GROUP, HOME } from "./States";
 import theme from "./Themes";
 
+console.log(theme.palette);
+
 function Router({ currentState, setCurrentState }) {
   switch (currentState) {
     case CREATE_GROUP:
@@ -39,7 +41,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <Container>
-        <AppBar elevation={0} position="sticky">
+        <AppBar elevation={0} position="sticky" sx={{mb: 2}}>
           <Toolbar sx={{ justifyContent: "space-between" }}>
             {user ? (
               <Box sx={{ flex: 1 }}>
@@ -56,7 +58,7 @@ function App() {
               sx={{ fontSize: 24 }}
               onClick={() => setCurrentState(HOME)}
             >
-              ChoreGraph
+              Tasket
             </Button>
             <Box sx={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
               {user ? (
@@ -69,7 +71,7 @@ function App() {
             </Box>
           </Toolbar>
         </AppBar>
-        <Container maxWidth="" className="App">
+        <Container className="App">
           {user ? (
             <Router
               currentState={currentState}

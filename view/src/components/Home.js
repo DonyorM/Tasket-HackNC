@@ -5,6 +5,7 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  Paper,
   Typography,
 } from "@mui/material";
 import { useCollection } from "react-firebase-hooks/firestore";
@@ -49,8 +50,8 @@ function WithAuth({ email, setCurrentState }) {
   }
 
   return (
-    <Container>
-      <List>
+    <Paper sx={{p: 1}}>
+      <List sx={{mt:1, mb: 1}}>
         {groupData.map((task, index) => {
           return (
             <ListItemButton
@@ -62,8 +63,8 @@ function WithAuth({ email, setCurrentState }) {
           );
         })}
       </List>
-      <Button onClick={createGroup} variant="contained">Create Group</Button>
-    </Container>
+      <Button sx={{mt: 1, mb: 1}} onClick={createGroup} variant="contained">Create Group</Button>
+    </Paper>
   );
 }
 
