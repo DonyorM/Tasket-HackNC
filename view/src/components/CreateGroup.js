@@ -121,7 +121,7 @@ function CreateGroup({ setCurrentState }) {
 
   async function saveGroup() {
     const groupRef = doc(db, "groups", groupName);
-    const memberList = members.split(",");
+    const memberList = members.split(",").map(x => x.trim());
     memberList.push(user.email);
 
     const groupDoc = await getDoc(groupRef);
